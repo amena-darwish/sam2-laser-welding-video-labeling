@@ -126,7 +126,7 @@ With a keyframe interval of 10, review frames such as:
 
 ### Keyframe labeling example
 
-![Manual labeling steps 1–4](images/manual_labeling_steps_1_4.png)
+![Manual labeling steps 1–4](/Images/manual_labeling_steps_1_4.png)
 
 ### Steps 1–4
 
@@ -190,7 +190,7 @@ For the keyframe workflow, the dedicated **SAM2 keyframe propagation** section s
 
 After reviewing the keyframes, use the propagation section in the interface.
 
-![SAM2 propagation steps 5–8](images/sam2_propagation_steps_5_8.png)
+![SAM2 propagation steps 5–8](/Images/sam2_propagation_steps_5_8.png)
 
 ### Steps 5–8
 
