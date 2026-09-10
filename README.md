@@ -50,7 +50,7 @@ conda activate sam2_labeling
 Move to the repository:
 
 ```cmd
-cd /d D:\standalone_sam2_labeling_verified_ui\standalone_sam2_labeling
+cd Path\standalone_sam2_labeling
 ```
 
 Replace the example paths below with the paths used on your computer.
@@ -64,11 +64,11 @@ Run `generate_masks.py` on the original welding video.
 Example:
 
 ```cmd
-python generate_masks.py ^
-  --video "D:\path\to\video.avi" ^
-  --output-dir "D:\path\to\output\video_name" ^
-  --target-frames 164 ^
-  --keyframe-interval 10 ^
+python generate_masks.py 
+  --video "D:\path\to\video.avi" 
+  --output-dir "D:\path\to\output\video_name" 
+  --target-frames 164 
+  --keyframe-interval 10 
   --sam2-repo "C:\path\to\sam2"
 ```
 
@@ -78,7 +78,7 @@ If the available arguments differ, check them with:
 python generate_masks.py -h
 ```
 
-Typical output:
+output:
 
 ```text
 video_name/
@@ -126,7 +126,7 @@ With a keyframe interval of 10, review frames such as:
 
 ### Keyframe labeling example
 
-![Manual labeling steps 1–4](docs/images/manual_labeling_steps_1_4.png)
+![Manual labeling steps 1–4](images/manual_labeling_steps_1_4.png)
 
 ### Steps 1–4
 
@@ -190,7 +190,7 @@ For the keyframe workflow, the dedicated **SAM2 keyframe propagation** section s
 
 After reviewing the keyframes, use the propagation section in the interface.
 
-![SAM2 propagation steps 5–8](docs/images/sam2_propagation_steps_5_8.png)
+![SAM2 propagation steps 5–8](images/sam2_propagation_steps_5_8.png)
 
 ### Steps 5–8
 
@@ -302,10 +302,10 @@ video_name/
 
 ### Final files
 
-- `frames/` — image frames used for annotation and model input.
-- `final_masks/` — final reviewed segmentation masks.
-- `labels_final.csv` — final labels linking each object to its frame and mask.
-- `frame_mapping.csv` — optional mapping to original video-frame indices.
+- `frames/` : image frames used for annotation and model input.
+- `final_masks/` : final reviewed segmentation masks.
+- `labels_final.csv` : final labels linking each object to its frame and mask.
+- `frame_mapping.csv` : optional mapping to original video-frame indices.
 
 ---
 
