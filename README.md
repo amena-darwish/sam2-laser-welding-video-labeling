@@ -1,514 +1,396 @@
-# Standalone SAM2 Labeling for Laser Welding Videos
+# Standalone SAM2 Labeling for Laser-Welding Videos
 
-This repository provides a standalone human-in-the-loop workflow for creating reviewed segmentation annotations from laser welding videos using SAM2 and a custom manual-labeling interface.
+This repository provides a standalone workflow for creating and reviewing segmentation labels in laser-welding videos with Meta SAM2. It:
 
-The final annotation classes are:
+- extracts frames uniformly across an entire video;
+- preserves every frame's exact index in the source video;
+- generates automatic SAM2 candidate masks;
+- supports manual `weld`, `plasma`, and `spatter` labeling;
+- lets users review keyframes, such as every tenth extracted frame;
+- propagates corrected masks with the SAM2 video predictor; and
+- supports final review and dataset export.
 
-- `weld`
-- `plasma`
-- `spatter`
+The defaults are 164 extracted frames and a keyframe interval of 10. Both are configurable.
 
-SAM2 supports automatic mask generation and propagation, while the final reference annotations are manually reviewed and corrected before export.
+**GitHub repository:** [amena-darwish/sam2-laser-welding-video-labeling](https://github.com/amena-darwish/sam2-laser-welding-video-labeling)
 
----
+## Dataset
 
-## 1. First-time installation
+The associated laser-welding video annotation dataset is distributed separately from the source code.
 
-The steps below only need to be done once on a new computer.
+**Dataset:** [Add the published dataset link here](DATASET_URL_HERE)
 
-### 1.1 Install Anaconda or Miniconda
+After publishing the dataset, replace `DATASET_URL_HERE` with its DOI or repository URL (for example, Zenodo, Figshare, Mendeley Data, or an institutional repository).
 
-Install Anaconda or Miniconda if Conda is not already available.
+## Workflow
 
-After installation, open **Anaconda Prompt** or **Command Prompt** with Conda available.
+1. Generate frames and candidate masks with `generate_masks.py`.
+2. Open `manual_label_gui.py` and review **Keyframes only**.
+3. Propagate the corrected masks with `propagate_keyframes.py`.
+4. Open the propagated manifest for final review and export.
 
-### 1.2 Create the environment
+## Included files
 
-```cmd
-conda create -n sam2_labeling python=3.10 -y
-conda activate sam2_labeling
+| File | Purpose |
+|---|---|
+| `generate_masks.py` | Extract frames, preserve source indices, and generate SAM2 candidates |
+| `manual_label_gui.py` | Manual labeling and review interface |
+| `propagate_keyframes.py` | Propagate corrected masks between keyframes |
+| `requirements.txt` | UI and image-processing dependencies |
+| `requirements-tested.txt` | Exact non-PyTorch versions from the verified Windows environment |
+
+## Requirements
+
+- Python 3.10 or 3.11 recommended
+- Git
+- PyTorch and TorchVision suitable for the computer
+- Meta SAM2 and a compatible checkpoint
+- NVIDIA GPU recommended; CPU works but Hiera Large can be very slow
+
+All paths are supplied by the user. The code does not depend on a particular username, drive, Linux/WSL folder, or video filename.
+
+## 1. Download this repository
+
+```bash
+git clone https://github.com/amena-darwish/sam2-laser-welding-video-labeling.git
+cd sam2-laser-welding-video-labeling
 ```
 
-Upgrade `pip`:
+Alternatively, download and extract the repository ZIP from GitHub.
 
-```cmd
+## 2. Create an environment
+
+The following Conda commands work on Windows, Linux, and macOS:
+
+```bash
+conda create -n sam2_labeling python=3.11 -y
+conda activate sam2_labeling
 python -m pip install --upgrade pip
 ```
 
-### 1.3 Install PyTorch
+A normal Python virtual environment can also be used.
 
-Install PyTorch first:
+## 3. Install PyTorch
 
-```cmd
-pip install torch torchvision
-```
-
-Check that PyTorch is installed and that the NVIDIA GPU is available:
-
-```cmd
-python -c "import torch; print('PyTorch:', torch.__version__); print('CUDA available:', torch.cuda.is_available()); print('GPU:', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU')"
-```
-
-For SAM2 propagation, an NVIDIA GPU is strongly recommended.
-
-If `CUDA available` is `False` on a computer with an NVIDIA GPU, install the PyTorch build recommended for the computer from:
+PyTorch is intentionally excluded from `requirements.txt` because the correct build depends on the operating system and hardware. Get the current installation command from:
 
 https://pytorch.org/get-started/locally/
 
-### 1.4 Install Gradio and the other Python packages
+NVIDIA GPU example (the versions offered by PyTorch may change):
 
-```cmd
-pip install gradio opencv-python pandas numpy hydra-core iopath tqdm
+```bash
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
 ```
 
-Check Gradio:
+CPU-only example:
 
-```cmd
-python -c "import gradio as gr; print('Gradio:', gr.__version__)"
+```bash
+pip install torch torchvision
 ```
 
-### 1.5 Install SAM2
+The CUDA version displayed by `nvidia-smi` is the maximum supported by the driver. It does not need to exactly match the CUDA runtime bundled with PyTorch. Use a build offered by the official PyTorch installer.
 
-Clone the official SAM2 repository:
+Verify the installation:
 
-```cmd
+```bash
+python -c "import torch; print('PyTorch:', torch.__version__); print('CUDA available:', torch.cuda.is_available()); print('PyTorch CUDA:', torch.version.cuda); print('Device:', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU')"
+```
+
+GPU users should see `CUDA available: True`.
+
+## 4. Install Meta SAM2
+
+Choose any convenient directory, then run:
+
+```bash
 git clone https://github.com/facebookresearch/sam2.git
-```
-
-Move into the SAM2 repository:
-
-```cmd
 cd sam2
-```
-
-Install SAM2 in the current Conda environment:
-
-```cmd
 pip install -e .
+cd ..
 ```
 
-### 1.6 Download the SAM2 checkpoint
+If Git is unavailable, download SAM2 from https://github.com/facebookresearch/sam2, extract it, open a terminal inside it, and run `pip install -e .`.
 
-Download the SAM2.1 Hiera Large checkpoint:
+Native Windows may report that an optional CUDA extension could not be compiled. Follow the current SAM2 documentation if installation fails. WSL/Linux may be easier for some configurations, but this labeling package does not require Linux-specific paths.
+
+## 5. Download a SAM2 checkpoint
+
+Follow the official instructions at https://github.com/facebookresearch/sam2#download-checkpoints.
+
+The package defaults to:
 
 ```text
 sam2.1_hiera_large.pt
 ```
 
-Place it inside:
+Place it at:
 
 ```text
-sam2/
-└── checkpoints/
-    └── sam2.1_hiera_large.pt
+<SAM2_REPO>/checkpoints/sam2.1_hiera_large.pt
 ```
 
-The checkpoint can be obtained from the official SAM2 repository:
+The checkpoint is intentionally excluded from Git. It can be stored elsewhere if its full path is passed to the scripts.
 
-https://github.com/facebookresearch/sam2
+## 6. Install the application dependencies
 
-### 1.7 Check the installation
+Return to this repository and run:
 
-Run:
+```bash
+pip uninstall -y hf-gradio
+pip install -r requirements.txt
+```
+
+`requirements.txt` pins the UI stack to the versions used by the original
+working labeling interface. `hf-gradio` is not used by this project and should
+not be installed because it can interfere with Gradio's API generation.
+
+To reproduce the exact verified application/web stack instead, use:
+
+```bash
+pip install -r requirements-tested.txt
+```
+
+PyTorch and SAM2 are intentionally excluded from both files. PyTorch must match
+the target CPU/GPU platform, and SAM2 is installed from Meta's repository.
+
+### Verified environment
+
+The SAM2 workflow was tested on an NVIDIA RTX A6000. The original working UI
+was verified with the following interface stack:
+
+| Package | Tested version |
+|---|---:|
+| Python | 3.11 environment |
+| NumPy | 2.2.6 |
+| pandas | 2.2.3 |
+| OpenCV Python | 5.0.0.93 |
+| Gradio | 6.5.1 |
+| Gradio Client | 2.0.3 |
+| FastAPI | 0.129.0 |
+| Starlette | 0.52.1 |
+| Pydantic | 2.12.5 |
+| hf-gradio | Not installed |
+| Hydra Core | 1.3.6 |
+| OmegaConf | 2.3.1 |
+| PyTorch | 2.11.0+cu128 |
+| TorchVision | 0.26.0+cu128 |
+| SAM2 | 1.0 |
+
+The tested PyTorch versions are evidence of one successful CUDA setup, not a
+universal requirement. New users should select PyTorch from the official
+installer for their own hardware and operating system.
+
+## 7. Generate frames and masks
+
+Use a new output directory for every video. It must be empty or not yet exist.
+
+### Windows Command Prompt
 
 ```cmd
-python -c "import torch, gradio, cv2, pandas, numpy, sam2; print('Installation OK'); print('CUDA available:', torch.cuda.is_available())"
+python generate_masks.py --video "C:\path\to\video.avi" --output-dir "C:\path\to\output\video_name" --repo-dir "C:\path\to\sam2" --checkpoint "C:\path\to\sam2\checkpoints\sam2.1_hiera_large.pt" --target-frames 164 --keyframe-interval 10 --device cuda
 ```
 
-If this prints:
+### Linux, WSL, or macOS
+
+```bash
+python generate_masks.py \
+  --video "/path/to/video.avi" \
+  --output-dir "/path/to/output/video_name" \
+  --repo-dir "/path/to/sam2" \
+  --checkpoint "/path/to/sam2/checkpoints/sam2.1_hiera_large.pt" \
+  --target-frames 164 \
+  --keyframe-interval 10 \
+  --device cuda
+```
+
+Use `--device cpu` when CUDA is unavailable.
+
+`--repo-dir` can be omitted if `SAM2_REPO` is set:
+
+```cmd
+set SAM2_REPO=C:\path\to\sam2
+```
+
+```bash
+export SAM2_REPO="/path/to/sam2"
+```
+
+Expected output:
 
 ```text
-Installation OK
+output/video_name/
+|-- frames/
+|-- RAW_SAM/
+|   `-- masks/
+|-- frames_manifest.csv
+`-- label_manifest.csv
 ```
 
-the main dependencies are available.
+## 8. Label the keyframes
 
----
-
-## 2. Repository files
-
-Keep the standalone labeling scripts together in one project folder, for example:
-
-```text
-standalone_sam2_labeling/
-├── generate_masks.py
-├── manual_label_gui.py
-├── propagate_keyframes_sam2.py
-└── ...
-```
-
-The SAM2 repository can be stored separately, for example:
-
-```text
-C:\path\to\sam2\
-```
-
-The UI uses `propagate_keyframes_sam2.py` for the integrated SAM2 keyframe-propagation step, so keep the propagation script together with the standalone labeling code.
-
----
-
-## 3. Workflow
-
-```text
-Original welding video
-        ↓
-Extract frames + generate initial SAM2 masks
-        ↓
-Open the manual-labeling UI
-        ↓
-Review and label keyframes
-(for example every 10 frames)
-        ↓
-Save + Run SAM2 keyframe propagation
-        ↓
-Open propagated review
-        ↓
-Inspect and correct propagated masks
-        ↓
-Remove duplicate PROP masks on keyframes
-        ↓
-Export final dataset
-        ↓
-frames/
-final_masks/
-labels_final.csv
-```
-
----
-
-## 4. Activate the environment
-
-Each time the labeling workflow is used, activate the environment:
+### Windows Command Prompt
 
 ```cmd
-conda activate sam2_labeling
+python manual_label_gui.py --csv "C:\path\to\output\video_name\label_manifest.csv" --frames "C:\path\to\output\video_name\frames" --host 127.0.0.1 --port 7860
 ```
 
-Move to the standalone repository:
+### Linux, WSL, or macOS
 
-```cmd
-cd /d Path\standalone_sam2_labeling
-```
-
-Replace the example paths below with the paths used on your computer.
-
----
-
-## 5. Extract frames and generate initial SAM2 masks
-
-Run `generate_masks.py` on the original welding video.
-
-Example:
-
-```cmd
-python generate_masks.py ^
-  --video "D:\path\to\video.avi" ^
-  --output-dir "D:\path\to\output\video_name" ^
-  --target-frames 164 ^
-  --keyframe-interval 10 ^
-  --sam2-repo "C:\path\to\sam2"
-```
-
-If the available arguments differ, check them with:
-
-```cmd
-python generate_masks.py -h
-```
-
-Typical output:
-
-```text
-video_name/
-├── frames/
-├── RAW_SAM/
-├── frames_manifest.csv
-└── label_manifest.csv
-```
-
----
-
-## 6. Open the manual-labeling UI
-
-Start the interface with the generated `label_manifest.csv`:
-
-```cmd
-python manual_label_gui.py ^
-  --csv "D:\path\to\output\video_name\label_manifest.csv" ^
-  --frames "D:\path\to\output\video_name\frames" ^
-  --host 127.0.0.1 ^
+```bash
+python manual_label_gui.py \
+  --csv "/path/to/output/video_name/label_manifest.csv" \
+  --frames "/path/to/output/video_name/frames" \
+  --host 127.0.0.1 \
   --port 7860
 ```
 
-Open:
+Open http://127.0.0.1:7860, then:
 
-```text
-http://127.0.0.1:7860
+1. Select **Keyframes only**.
+2. Select masks by clicking the image or using the mask table.
+3. Correct or assign masks as `weld`, `plasma`, or `spatter`.
+4. Add missing masks with the polygon or brush tools.
+5. Use split or merge when a candidate mask has the wrong shape.
+6. Click **Save now** regularly.
+7. Stop the server with `Ctrl+C` after finishing the keyframes.
+
+### Manual labeling controls
+
+- **Previous/next frame** navigates through all extracted frames.
+- **Previous/next review** follows the selected review queue.
+- **Keyframes only** limits review navigation to the configured keyframes.
+- **Set → weld/plasma/spatter** assigns the selected or checked masks.
+- **Polygon** creates a new mask from clicked boundary points.
+- **Brush** creates one or more masks from painted connected regions.
+- **Split** separates a selected mask using two seed points.
+- **Merge** combines two selected masks.
+- **Save now** writes changes to the active manifest CSV.
+- **Export final dataset** writes the reviewed CSV, masks, and frame copies.
+
+The interface intentionally does not display the former large diagnostic
+**Info** panel. Essential operation feedback remains in the compact save,
+split/merge, and export message fields.
+
+With 164 extracted frames and interval 10, approximately 17 frames are reviewed manually.
+
+### Keyframe-labeling example
+
+![Manual labeling steps 1–4](./images/manual_labeling_steps_1_4.png)
+
+## 9. Propagate corrected masks
+
+### Windows Command Prompt
+
+```cmd
+python propagate_keyframes.py --csv "C:\path\to\output\video_name\label_manifest.csv" --frames "C:\path\to\output\video_name\frames" --repo-dir "C:\path\to\sam2" --checkpoint-path "C:\path\to\sam2\checkpoints\sam2.1_hiera_large.pt" --keyframe-interval 10 --manual-only --device cuda
 ```
 
----
+### Linux, WSL, or macOS
 
-## 7. Label the keyframes
-
-Set:
-
-```text
-Review queue → Keyframes only
+```bash
+python propagate_keyframes.py \
+  --csv "/path/to/output/video_name/label_manifest.csv" \
+  --frames "/path/to/output/video_name/frames" \
+  --repo-dir "/path/to/sam2" \
+  --checkpoint-path "/path/to/sam2/checkpoints/sam2.1_hiera_large.pt" \
+  --keyframe-interval 10 \
+  --manual-only \
+  --device cuda
 ```
 
-With a keyframe interval of 10, review frames such as:
+`--manual-only` prevents unreviewed automatic masks from becoming propagation seeds. The default output is:
 
 ```text
-0, 10, 20, 30, ..., 150, 160
+output/video_name/sam2_propagated_keyframes/
 ```
 
-Review and correct the selected keyframes only. The frames between the keyframes will be filled later by SAM2 propagation.
+Use `--overwrite` only when intentionally replacing an existing propagation run.
 
-### Keyframe labeling example
+### Propagation and final-review example
 
-![Manual labeling steps 1–4](Images/manual_labeling_steps_1_4.png)
+![SAM2 propagation steps 5–8](./images/sam2_propagation_steps_5_8.png)
 
-### Steps 1–4
+> **Important:** A reviewed keyframe may contain both its manually corrected mask and a propagated mask. Inspect these keyframes and delete or ignore the duplicate mask before final export.
 
-1. **Choose the frame.**  
-   Use the frame index or review navigation. For example, review every 10 frames.
+## 10. Final review and export
 
-2. **Select the mask.**  
-   Click once on the mask in the image, or select its row in the table.
+### Windows Command Prompt
 
-3. **Assign the class.**  
-   For example, if the selected mask is the weld region, click **Set → weld**.
-
-4. **Save your work.**  
-   Click **Save now** regularly.
-
-Repeat the same procedure for all selected keyframes.
-
-The three final classes are:
-
-- `weld`
-- `plasma`
-- `spatter`
-
-The interface may also contain working categories such as `static` and `dynamic_other`. These are review categories and are not final training classes.
-
----
-
-## 8. Useful manual-editing tools
-
-The interface supports:
-
-- selecting masks directly from the image;
-- selecting masks from the table;
-- assigning `weld`, `plasma`, or `spatter`;
-- ignoring or soft-deleting incorrect masks;
-- polygon drawing;
-- brush editing;
-- splitting one mask using two seed points;
-- merging two masks;
-- assigning track IDs.
-
-Use these tools when an automatically generated mask is missing, incorrect, split, or merged with another object.
-
----
-
-## 9. Important: UI label-forward is not SAM2 propagation
-
-The option:
-
-```text
-Auto-propagate label forward
+```cmd
+python manual_label_gui.py --csv "C:\path\to\output\video_name\sam2_propagated_keyframes\labels_manifest_combined_original_plus_propagated.csv" --frames "C:\path\to\output\video_name\frames" --host 127.0.0.1 --port 7860
 ```
 
-is different from SAM2 keyframe propagation. It only carries a class label forward to sufficiently similar candidate masks using an IoU rule.
+### Linux, WSL, or macOS
 
-For the keyframe workflow, use the dedicated **SAM2 keyframe propagation** section.
-
----
-
-## 10. Run SAM2 keyframe propagation inside the UI
-
-After reviewing the keyframes, use the propagation section in the interface.
-
-![SAM2 propagation steps 5–8](Images/sam2_propagation_steps_5_8.png)
-
-### Steps 5–8
-
-5. **Run SAM2 propagation.**  
-   Click **Save + Run SAM2 keyframe propagation**.
-
-6. **Check the progress.**  
-   Wait until the propagation progress reaches `100%`.
-
-7. **Open propagated review.**  
-   Click **Open propagated review**. Inspect and correct the propagated masks in the frames between the manually reviewed keyframes. Also check the keyframes themselves for duplicate masks.
-
-8. **Export the final dataset.**  
-   Only after the propagated masks have been reviewed and corrected, click **Export final dataset**.
-
-You do **not** need to close the UI before running propagation.
-
----
-
-## 11. Important: check duplicate masks on keyframes
-
-After SAM2 propagation, a reviewed keyframe can contain two masks for the same object:
-
-- `ORG` or `MAN` — the original or manually reviewed mask
-- `PROP` — the SAM2 propagated mask
-
-This can happen because the reviewed keyframe is also used as a propagation seed.
-
-For the same physical object, keep only one final mask.
-
-Normally:
-
-1. keep the manually reviewed `ORG` or `MAN` mask if it is correct;
-2. select the duplicated `PROP` mask;
-3. use **Soft delete selected** or **Toggle ignore**;
-4. confirm that only one mask remains for that object.
-
-Do not keep both masks because this would create a duplicate annotation for the same object.
-
-For `spatter`, several masks may be correct in one frame when they represent different physical spatter objects. Remove only masks that represent the same object twice.
-
----
-
-## 12. What propagation creates
-
-The propagation step creates a folder such as:
-
-```text
-video_name/
-└── sam2_propagated_keyframes/
+```bash
+python manual_label_gui.py \
+  --csv "/path/to/output/video_name/sam2_propagated_keyframes/labels_manifest_combined_original_plus_propagated.csv" \
+  --frames "/path/to/output/video_name/frames" \
+  --host 127.0.0.1 \
+  --port 7860
 ```
 
-Typical intermediate files include:
+Review the propagated masks, correct errors, and click **Export final dataset**. The export includes `labels_final.csv`, final masks, and copies of the referenced frames.
 
-```text
-labels_manifest_propagated.csv
-labels_manifest_combined_original_plus_propagated.csv
-propagation_report.csv
-propagation_meta.json
-typed_masks/
+Before exporting, confirm that image selection, table selection, class buttons,
+brush saving, polygon saving, frame navigation, and **Save now** work in the
+installed Gradio environment.
+
+## Preserved frame indices
+
+| Field | Meaning |
+|---|---|
+| `frame_index` | Position in the extracted sequence |
+| `source_frame_index` | Exact frame index in the original video |
+| `source_video` | Original video filename |
+
+These fields remain available through generation, propagation, review, and final export. Do not treat the extracted filename alone as the original frame index.
+
+## Default settings
+
+| Parameter | Default |
+|---|---:|
+| Model | SAM2.1 Hiera Large |
+| Points per side | 16 |
+| Generator predicted-IoU threshold | 0.40 |
+| Generator stability threshold | 0.25 |
+| Retained predicted-IoU threshold | 0.50 |
+| Retained stability threshold | 0.50 |
+| Minimum mask area | 20 px |
+| Maximum frame-area fraction | 0.98 |
+| Duplicate-mask NMS IoU | 0.97 |
+| Extracted frames | 164 |
+| Keyframe interval | 10 |
+
+To see all configurable options:
+
+```bash
+python generate_masks.py --help
+python manual_label_gui.py --help
+python propagate_keyframes.py --help
 ```
 
-The combined CSV is loaded by **Open propagated review**.
+## Do not commit to GitHub
 
----
+- SAM2 checkpoints
+- input videos
+- extracted frames and generated masks
+- labeling output directories
+- machine-specific absolute paths
+- Conda environments or Python caches
 
-## 13. Final review
+The included `.gitignore` excludes common generated files and model weights.
 
-During the final review:
+## Troubleshooting
 
-1. inspect the propagated masks;
-2. remove duplicate masks on the keyframes;
-3. correct wrong boundaries;
-4. add missing regions;
-5. remove unwanted masks;
-6. correct wrong class labels;
-7. confirm that the final objects use only `weld`, `plasma`, and `spatter`;
-8. save regularly.
+- **`CUDA available: False`**: check `nvidia-smi`, then install PyTorch using its official selector. Do not select a wheel only by matching the CUDA number printed by `nvidia-smi`.
+- **`Could not import sam2`**: activate the correct environment, enter the SAM2 repository, and rerun `pip install -e .`.
+- **Checkpoint not found**: verify `--checkpoint` or `--checkpoint-path` and confirm that the download completed.
+- **Output directory is not empty**: choose a new directory to protect existing labels.
+- **Port 7860 is busy**: use `--port 7861` and open http://127.0.0.1:7861.
+- **Gradio API/schema errors mentioning `hf_gradio`, `DataFrame`, `TemplateResponse`, or `localhost is not accessible`**: run `pip uninstall -y gradio gradio-client hf-gradio`, then reinstall the verified stack with `pip install --upgrade --force-reinstall -r requirements.txt`.
+- **GPU out of memory**: close GPU applications, reduce `--points-per-side`, or use a smaller SAM2 model with its matching checkpoint and configuration.
+- **CPU is very slow**: this is expected with Hiera Large; use a supported GPU or a smaller matching model.
+- **Video cannot be read**: confirm the path and permissions. If OpenCV lacks the codec, convert the video to a common AVI or MP4 codec.
 
-When the review is complete, click **Export final dataset**.
-
----
-
-## 14. Final annotation dataset
-
-The clean annotation folder used for model development should contain:
-
-```text
-video_name/
-├── frames/
-├── final_masks/
-└── labels_final.csv
-```
-
-If a frame-mapping file is available, it can also be kept to link the extracted annotation frames to their original positions in the complete video:
-
-```text
-video_name/
-├── frames/
-├── final_masks/
-├── labels_final.csv
-└── frame_mapping.csv
-```
-
-### Final files
-
-- `frames/` — image frames used for annotation and model input.
-- `final_masks/` — final reviewed segmentation masks.
-- `labels_final.csv` — final labels linking each object to its frame and mask.
-- `frame_mapping.csv` — optional mapping to original video-frame indices.
-
----
-
-## 15. Files not required in the clean public annotation package
-
-After the final export has been checked, intermediate files can be excluded from the clean release copy.
-
-Examples:
-
-```text
-RAW_SAM/
-typed_masks/
-_sam2_video_frames_jpg/
-labels_manifest*.csv
-labels_final_before_*.csv
-propagation_report*.csv
-propagation_meta.json
-temporary overlay images
-checkpoint files
-*.Zone.Identifier
-```
-
-Keep the original working annotation folder as a backup until the clean release copy has been verified.
-
----
-
-## 16. Verify the final dataset
-
-Before publishing or training from the cleaned annotations, verify that:
-
-1. every `image_path` in `labels_final.csv` points to an existing file in `frames/`;
-2. every `mask_path` points to an existing file in `final_masks/`;
-3. the final labels contain only `weld`, `plasma`, and `spatter`;
-4. duplicate masks from the keyframe propagation have been removed;
-5. ignored or deleted rows are not included in the final export;
-6. the paths remain valid if the dataset folder is moved.
-
-Preferred path format:
-
-```text
-frames/frame_00010.png
-final_masks/frame_00010_obj_001.png
-```
-
-Avoid machine-specific absolute paths in the released CSV.
-
----
-
-## 17. Recommended public annotation structure
-
-```text
-annotations/
-├── model_development/
-│   ├── DoE3_9/
-│   ├── DoE3_16/
-│   ├── DoE3_22/
-│   ├── DoE3_24/
-│   ├── DoE3_25/
-│   └── DoE3_26/
-│
-└── independent_evaluation/
-    ├── DoE3_19/
-    └── DoE3_23/
-```
-
----
-
-## 18. Annotation principle
-
-SAM2 assists mask generation and temporal propagation. Automatically generated masks are not treated as ground truth by themselves.
-
-The released reference annotations are the masks retained after manual inspection, correction, final review, duplicate removal, and export.
+When reporting an issue, include the operating system, Python and PyTorch versions, CUDA availability, GPU name, exact command, and full terminal error.
