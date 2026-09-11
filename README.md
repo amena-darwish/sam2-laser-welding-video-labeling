@@ -18,9 +18,7 @@ The defaults are 164 extracted frames and a keyframe interval of 10. Both are co
 
 The associated laser-welding video annotation dataset is distributed separately from the source code.
 
-**Dataset:** [Add the published dataset link here](DATASET_URL_HERE)
-
-After publishing the dataset, replace `DATASET_URL_HERE` with its DOI or repository URL (for example, Zenodo, Figshare, Mendeley Data, or an institutional repository).
+**Dataset:** [published dataset link here]
 
 ## Workflow
 
@@ -47,7 +45,6 @@ After publishing the dataset, replace `DATASET_URL_HERE` with its DOI or reposit
 - Meta SAM2 and a compatible checkpoint
 - NVIDIA GPU recommended; CPU works but Hiera Large can be very slow
 
-All paths are supplied by the user. The code does not depend on a particular username, drive, Linux/WSL folder, or video filename.
 
 ## 1. Download this repository
 
@@ -176,13 +173,10 @@ was verified with the following interface stack:
 | TorchVision | 0.26.0+cu128 |
 | SAM2 | 1.0 |
 
-The tested PyTorch versions are evidence of one successful CUDA setup, not a
-universal requirement. New users should select PyTorch from the official
-installer for their own hardware and operating system.
 
 ## 7. Generate frames and masks
 
-Use a new output directory for every video. It must be empty or not yet exist.
+Use a new output directory for every video. 
 
 ### Windows Command Prompt
 
