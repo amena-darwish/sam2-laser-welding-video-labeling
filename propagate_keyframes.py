@@ -1,6 +1,4 @@
 # scripts/propagate_keyframes_sam2.py
-from __future__ import annotations
-
 import argparse
 import json
 import os
