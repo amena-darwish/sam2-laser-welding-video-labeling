@@ -275,7 +275,7 @@ With 164 extracted frames and interval 10, approximately 17 frames are reviewed 
 
 ### Keyframe-labeling example
 
-![Manual labeling steps 1–4](./images/manual_labeling_steps_1_4.png)
+![Manual labeling steps 1–4](Images/manual_labeling_steps_1_4.png)
 
 ## 9. Propagate corrected masks
 
@@ -308,7 +308,7 @@ Use `--overwrite` only when intentionally replacing an existing propagation run.
 
 ### Propagation and final-review example
 
-![SAM2 propagation steps 5–8](./images/sam2_propagation_steps_5_8.png)
+![SAM2 propagation steps 5–8](Images/sam2_propagation_steps_5_8.png)
 
 > **Important:** A reviewed keyframe may contain both its manually corrected mask and a propagated mask. Inspect these keyframes and delete or ignore the duplicate mask before final export.
 
