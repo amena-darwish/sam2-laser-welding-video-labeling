@@ -1,11 +1,9 @@
-from __future__ import annotations
-
-import argparse
 import os
 import re
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
+import argparse
 
 import cv2
 import numpy as np
