@@ -388,3 +388,6 @@ The included `.gitignore` excludes common generated files and model weights.
 - **Video cannot be read**: confirm the path and permissions. If OpenCV lacks the codec, convert the video to a common AVI or MP4 codec.
 
 When reporting an issue, include the operating system, Python and PyTorch versions, CUDA availability, GPU name, exact command, and full terminal error.
+
+## AI-assisted development
+The research concept, methodology, and design decisions were developed by the repository author. OpenAI ChatGPT assisted with parts of implementation, debugging, and documentation. All AI-assisted material was reviewed and tested before publication.
