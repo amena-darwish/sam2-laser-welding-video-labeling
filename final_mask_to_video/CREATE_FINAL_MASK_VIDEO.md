@@ -51,7 +51,3 @@ Optional settings:
 ```cmd
 python create_final_mask_video.py --csv "C:\path\to\labels_final.csv" --frames "C:\path\to\frames" --fps 10 --alpha 0.45 --output "C:\path\to\final_video.mp4"
 ```
-
-The script introduces no new package requirement. It uses OpenCV and NumPy,
-which are already included in this project.
-
